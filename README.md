@@ -4,3 +4,5 @@ Arduino project to automate an aeroponics rig, with 3.5" LCD touchscreen control
 Tempurature Sensor
 PH Sensor
 PPM Sensor
+
+

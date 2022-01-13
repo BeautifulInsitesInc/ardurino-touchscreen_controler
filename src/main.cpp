@@ -8,6 +8,8 @@
 // The DallasTemperature library can do all this work for you!
 // https://github.com/milesburton/Arduino-Temperature-Control-Library
 
+//ready to test
+
 OneWire  ds(51);  // on pin 10 (a 4.7K resistor is necessary)
 void setup() {
   // put your setup code here, to run once:
