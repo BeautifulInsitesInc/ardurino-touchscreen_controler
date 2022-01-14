@@ -33,10 +33,10 @@ void loop() {
     return;
   }
   
-  Serial.print("ROM =");
+  Serial.println("ROM =");
   for( i = 0; i < 8; i++) {
-    Serial.write(' ');
-    Serial.print(addr[i], HEX);
+    //Serial.write(' ');
+    Serial.println(addr[i], HEX);
   }
 
   if (OneWire::crc8(addr, 7) != addr[7]) {
@@ -75,16 +75,16 @@ void loop() {
   ds.select(addr);    
   ds.write(0xBE);         // Read Scratchpad
 
-  Serial.print("  Data = ");
-  Serial.print(present, HEX);
-  Serial.print(" ");
+  Serial.println("  Data = ");
+  Serial.println(present, HEX);
+  Serial.println(" ");
   for ( i = 0; i < 9; i++) {           // we need 9 bytes
     data[i] = ds.read();
-    Serial.print(data[i], HEX);
-    Serial.print(" ");
+    Serial.println(data[i], HEX);
+    Serial.println(" ");
   }
-  Serial.print(" CRC=");
-  Serial.print(OneWire::crc8(data, 8), HEX);
+  Serial.println(" CRC=");
+  Serial.println(OneWire::crc8(data, 8), HEX);
   Serial.println();
 
   // Convert the data to actual temperature
@@ -108,9 +108,9 @@ void loop() {
   }
   celsius = (float)raw / 16.0;
   fahrenheit = celsius * 1.8 + 32.0;
-  Serial.print("  Temperature = ");
-  Serial.print(celsius);
-  Serial.print(" Celsius, ");
-  Serial.print(fahrenheit);
+  Serial.println("  Temperature = ");
+  //Serial.print(celsius);
+  Serial.printls(" Celsius, ");
+  //Serial.print(fahrenheit);
   Serial.println(" Fahrenheit");
 }
