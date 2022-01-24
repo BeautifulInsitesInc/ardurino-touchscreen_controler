@@ -31,6 +31,37 @@ DeviceAddress insideThermometer, outsideThermometer;
 // sensors.getAddress(deviceAddress, index)
 // DeviceAddress insideThermometer = { 0x28, 0x1D, 0x39, 0x31, 0x2, 0x0, 0x0, 0xF0 };
 // DeviceAddress outsideThermometer   = { 0x28, 0x3F, 0x1C, 0x31, 0x2, 0x0, 0x0, 0x2 };
+// ButtonFever - Version: Latest 
+#include <BfButton.h>
+//Arduino code - Rotary Encoder w Push button
+
+#include <BfButtonManager.h>
+
+int btnPin=3; //GPIO #3 Push button on ecoder
+int DT=4; //GPIO #4 on encoder (outbut B)
+int CLK=5; //GPIO #5-CLK on encoder (Output A)
+BfButton btn(BfButton::STANDALONE_DIGITAL, btnPin, true, LOW);
+
+int counter = 0;
+int angle = 0;
+int aState;
+int aLastState;
+
+//Button press handling function
+void pressHandler (BfButton *btn, BfButton::press_pattern_t pattern) {
+  switch (pattern) {
+    case BfButton::SINGLE_PRESS:
+      Serial.println("Single push");
+      break;
+      
+    case BfButton::DOUBLE_PRESS:
+      Serial.println("Double Push");
+      break;
+    case BfButton::LONG_PRESS:
+      Serial.println("Long push");
+      break;
+  }
+}
 
 void setup(void)
 {
