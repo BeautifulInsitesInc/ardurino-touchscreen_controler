@@ -5,11 +5,24 @@
 
 // ------- LCD DISPLAY ----------------------------
 LiquidCrystal_I2C lcd(0x27,20,4);  // set the LCD address to 0x27 for a 16 chars and 2 line display
-
+void displayMainscreenstatic()
+{
+  // Display the parts that don't change
+  lcd.setCursor(0,0);
+  lcd.print("Temp:");
+  lcd.setCursor(1,1);
+  lcd.print("PPM:");
+  lcd.setCursor(2,2);
+  lcd.print("PH:");
+  lcd.setCursor(0,3);
+  lcd.print("Pump:");
+  lcd.setCursor(14,3);
+  lcd.print("(Time)");
+}
 // ------ TEMPURATURE SENSOR DS18B20 -----------------------
 
 #define ONE_WIRE_BUS 2 // Port the data wire is plugged into on the Arduino
-#define TEMPERATURE_PRECISION 9
+#define TEMPERATURE_PRECISION 11
 
 OneWire oneWire(ONE_WIRE_BUS); // Setup a oneWire instance to communicate with any OneWire devices (not just Maxim/Dallas temperature ICs)
 DallasTemperature sensors(&oneWire); // Pass our oneWire reference to Dallas Temperature.
@@ -33,7 +46,9 @@ void setup(void)
   lcd.print("Feel Good");
    lcd.setCursor(4,3);
   lcd.print("Look Good");
-  delay(5000);
+  delay(1000);
+  lcd.clear();
+  displayMainscreenstatic();
   // ----- SETUP - THERMOMETER  -------
   // Start up the library
   sensors.begin();
@@ -92,7 +107,9 @@ void printTemperature(DeviceAddress deviceAddress)
     Serial.println("Error: Could not read temperature data");
     return;
   }
-  // ---- Print to screen
+  
+
+  /*// ---- Print to screen
   lcd.setCursor(0,1);
   lcd.print("                   ");
   lcd.setCursor(1,2);
@@ -107,11 +124,13 @@ void printTemperature(DeviceAddress deviceAddress)
   lcd.print("F:");
   lcd.setCursor(13,3);
   lcd.print(DallasTemperature::toFahrenheit(tempC));
-
+   */
   Serial.print("Temp C: ");
   Serial.print(tempC);
   Serial.print(" Temp F: ");
   Serial.print(DallasTemperature::toFahrenheit(tempC));
+
+  
 }
 
 // function to print a device's resolution
@@ -134,11 +153,32 @@ void printData(DeviceAddress deviceAddress)
   //lcd.print("CONCIERGE GROWERS");
   lcd.setCursor(0,1);
   lcd.print(" ");
-  
+  }
+
+float displayWaterTemp(DeviceAddress deviceAddress)
+{
+  float tempC = sensors.getTempC(deviceAddress);
+
+  if(tempC == DEVICE_DISCONNECTED_C) 
+  {
+    Serial.println("Error: Could not read temperature data");
+    tempC = -10;
+  }
+  return tempC;
 }
 // ------- END FUNCTIONS THERMOMETER -----------------------
+// ------- DISPLAY MAIN SCREEN --------------------------
+// --------- END DISPLAY MAIN SCREEN --------------------
+
+void displayMainscreenData() // Display the data that changes on main screen
+{
+  lcd.setCursor(5,0);
+  lcd.print(displayWaterTemp(waterThermometer));
+  lcd.print("C");
+  
 
 
+}
 
 void loop(void)
 {
@@ -150,8 +190,10 @@ void loop(void)
 
   // print the device information
   Serial.print("Water Tempurature :");
-  printData(waterThermometer);
-  printData(airThermometer);
+  //-printData(waterThermometer);
+  //-printData(airThermometer);
+
+  displayMainscreenData();
 
   
 }
