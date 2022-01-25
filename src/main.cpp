@@ -2,102 +2,62 @@
 #include <OneWire.h>
 #include <DallasTemperature.h>
 
-// OneWire DS18S20, DS18B20, DS1822 Temperature Example
-//
-// http://www.pjrc.com/teensy/td_libs_OneWire.html
-//
-// The DallasTemperature library can do all this work for you!
-// https://github.com/milesburton/Arduino-Temperature-Control-Library
 
-//ready to test
+// ------ TEMPURATURE SENSOR DS18B20 -----------------------
 
-// Data wire is plugged into port 2 on the Arduino
-#define ONE_WIRE_BUS 31
+#define ONE_WIRE_BUS 2 // Port the data wire is plugged into on the Arduino
 #define TEMPERATURE_PRECISION 9
 
-// Setup a oneWire instance to communicate with any OneWire devices (not just Maxim/Dallas temperature ICs)
-OneWire oneWire(ONE_WIRE_BUS);
+OneWire oneWire(ONE_WIRE_BUS); // Setup a oneWire instance to communicate with any OneWire devices (not just Maxim/Dallas temperature ICs)
+DallasTemperature sensors(&oneWire); // Pass our oneWire reference to Dallas Temperature.
 
-// Pass our oneWire reference to Dallas Temperature.
-DallasTemperature sensors(&oneWire);
+DeviceAddress waterThermometer, airThermometer; // arrays to hold device addresses
 
-// arrays to hold device addresses
-DeviceAddress insideThermometer, outsideThermometer;
-
-// Assign address manually. The addresses below will need to be changed
-// to valid device addresses on your bus. Device address can be retrieved
-// by using either oneWire.search(deviceAddress) or individually via
-// sensors.getAddress(deviceAddress, index)
-// DeviceAddress insideThermometer = { 0x28, 0x1D, 0x39, 0x31, 0x2, 0x0, 0x0, 0xF0 };
-// DeviceAddress outsideThermometer   = { 0x28, 0x3F, 0x1C, 0x31, 0x2, 0x0, 0x0, 0x2 };
-
+//  ----------- END TEMPURATURE SENSOR ---------------------
 void setup(void)
 {
   // start serial port
   Serial.begin(9600);
-  Serial.println("Dallas Temperature IC Control Library Demo");
+  Serial.println("Starting Hydroponics Automation Controler");
 
+  // ----- SETUP - THERMOMETER  -------
   // Start up the library
   sensors.begin();
-
   // locate devices on the bus
   Serial.print("Locating devices...");
   Serial.print("Found ");
   Serial.print(sensors.getDeviceCount(), DEC);
   Serial.println(" devices.");
-
   // report parasite power requirements
   Serial.print("Parasite power is: ");
   if (sensors.isParasitePowerMode()) Serial.println("ON");
   else Serial.println("OFF");
 
-  // Search for devices on the bus and assign based on an index. Ideally,
-  // you would do this to initially discover addresses on the bus and then
-  // use those addresses and manually assign them (see above) once you know
-  // the devices on your bus (and assuming they don't change).
-  //
-  // method 1: by index
-  if (!sensors.getAddress(insideThermometer, 0)) Serial.println("Unable to find address for Device 0");
-  if (!sensors.getAddress(outsideThermometer, 1)) Serial.println("Unable to find address for Device 1");
-
-  // method 2: search()
-  // search() looks for the next device. Returns 1 if a new address has been
-  // returned. A zero might mean that the bus is shorted, there are no devices,
-  // or you have already retrieved all of them. It might be a good idea to
-  // check the CRC to make sure you didn't get garbage. The order is
-  // deterministic. You will always get the same devices in the same order
-  //
-  // Must be called before search()
-  //oneWire.reset_search();
-  // assigns the first address found to insideThermometer
-  //if (!oneWire.search(insideThermometer)) Serial.println("Unable to find address for insideThermometer");
-  // assigns the seconds address found to outsideThermometer
-  //if (!oneWire.search(outsideThermometer)) Serial.println("Unable to find address for outsideThermometer");
+  // Search for devices on the bus and assign based on an index. 
+  if (!sensors.getAddress(waterThermometer, 0)) Serial.println("Unable to find address for Device 0");
+  if (!sensors.getAddress(airThermometer, 1)) Serial.println("Unable to find address for Device 1");
 
   // show the addresses we found on the bus
   Serial.print("Device 0 Address: ");
-  //printAddress(insideThermometer);
-  //Serial.println(insideThermometer,DEC);
   Serial.println();
-
   Serial.print("Device 1 Address: ");
-  //printAddress(outsideThermometer);
-  //Serial.println(outsideThermometer,DEC);
   Serial.println();
 
-  // set the resolution to 9 bit per device
-  sensors.setResolution(insideThermometer, TEMPERATURE_PRECISION);
-  sensors.setResolution(outsideThermometer, TEMPERATURE_PRECISION);
+  // set the resolution to per device
+  sensors.setResolution(waterThermometer, TEMPERATURE_PRECISION);
+  sensors.setResolution(airThermometer, TEMPERATURE_PRECISION);
 
   Serial.print("Device 0 Resolution: ");
-  Serial.print(sensors.getResolution(insideThermometer), DEC);
+  Serial.print(sensors.getResolution(waterThermometer), DEC);
   Serial.println();
 
   Serial.print("Device 1 Resolution: ");
-  Serial.print(sensors.getResolution(outsideThermometer), DEC);
+  Serial.print(sensors.getResolution(airThermometer), DEC);
   Serial.println();
-}
+  // ------------ END SETUP - THERMOMETER ------------
 
+}
+// ------- FUNCTIONS - THERMOMETER ----------------
 // function to print a device address
 void printAddress(DeviceAddress deviceAddress)
 {
@@ -141,10 +101,10 @@ void printData(DeviceAddress deviceAddress)
   printTemperature(deviceAddress);
   Serial.println();
 }
+// ------- END FUNCTIONS THERMOMETER -----------------------
 
-/*
-   Main function, calls the temperatures in a loop.
-*/
+
+
 void loop(void)
 {
   // call sensors.requestTemperatures() to issue a global temperature
@@ -154,6 +114,7 @@ void loop(void)
   Serial.println("DONE");
 
   // print the device information
-  printData(insideThermometer);
-  printData(outsideThermometer);
+  Serial.print("Water Tempurature :");
+  printData(waterThermometer);
+  printData(airThermometer);
 }
