@@ -1,7 +1,10 @@
 #include <Arduino.h>
 #include <OneWire.h>
 #include <DallasTemperature.h>
+#include <LiquidCrystal_I2C.h>
 
+// ------- LCD DISPLAY ----------------------------
+LiquidCrystal_I2C lcd(0x27,20,4);  // set the LCD address to 0x27 for a 16 chars and 2 line display
 
 // ------ TEMPURATURE SENSOR DS18B20 -----------------------
 
@@ -19,7 +22,18 @@ void setup(void)
   // start serial port
   Serial.begin(9600);
   Serial.println("Starting Hydroponics Automation Controler");
-
+  // ---- Initallize LCD
+  lcd.init(); 
+  lcd.backlight();
+  lcd.setCursor(1,0);
+  lcd.print("CONCIERGE GROWERS");
+  lcd.setCursor(5,1);
+  lcd.print("Eat Good");
+   lcd.setCursor(4,2);
+  lcd.print("Feel Good");
+   lcd.setCursor(4,3);
+  lcd.print("Look Good");
+  delay(5000);
   // ----- SETUP - THERMOMETER  -------
   // Start up the library
   sensors.begin();
@@ -78,6 +92,22 @@ void printTemperature(DeviceAddress deviceAddress)
     Serial.println("Error: Could not read temperature data");
     return;
   }
+  // ---- Print to screen
+  lcd.setCursor(0,1);
+  lcd.print("                   ");
+  lcd.setCursor(1,2);
+  lcd.print("Water Tempurature");
+  lcd.setCursor(0,3);
+  lcd.print("                   ");
+  lcd.setCursor(2,3);
+  lcd.print("C:");
+  lcd.setCursor(4,3);
+  lcd.print(tempC);
+  lcd.setCursor(11,3);
+  lcd.print("F:");
+  lcd.setCursor(13,3);
+  lcd.print(DallasTemperature::toFahrenheit(tempC));
+
   Serial.print("Temp C: ");
   Serial.print(tempC);
   Serial.print(" Temp F: ");
@@ -100,6 +130,11 @@ void printData(DeviceAddress deviceAddress)
   Serial.print(" ");
   printTemperature(deviceAddress);
   Serial.println();
+  //lcd.setCursor(1,0);
+  //lcd.print("CONCIERGE GROWERS");
+  lcd.setCursor(0,1);
+  lcd.print(" ");
+  
 }
 // ------- END FUNCTIONS THERMOMETER -----------------------
 
@@ -117,4 +152,6 @@ void loop(void)
   Serial.print("Water Tempurature :");
   printData(waterThermometer);
   printData(airThermometer);
+
+  
 }
