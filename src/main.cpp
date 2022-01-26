@@ -4,6 +4,75 @@
 #include <LiquidCrystal_I2C.h>
 
 // =======================================================
+// ======= PPM OCEAN TDS METER SENSOR ====================
+// =======================================================
+#define TdsSensorPin A1
+#define VREF 5.0      // analog reference voltage(Volt) of the ADC
+#define SCOUNT  30           // sum of sample point
+int analogBuffer[SCOUNT];    // store the analog value in the array, read from ADC
+int analogBufferTemp[SCOUNT];
+int analogBufferIndex = 0,copyIndex = 0;
+float averageVoltage = 0,tdsValue = 0,temperature = 25;
+
+int getMedianNum(int bArray[], int iFilterLen) 
+{
+      int bTab[iFilterLen];
+      for (byte i = 0; i<iFilterLen; i++)
+      bTab[i] = bArray[i];
+      int i, j, bTemp;
+      for (j = 0; j < iFilterLen - 1; j++) 
+      {
+      for (i = 0; i < iFilterLen - j - 1; i++) 
+          {
+        if (bTab[i] > bTab[i + 1]) 
+            {
+        bTemp = bTab[i];
+            bTab[i] = bTab[i + 1];
+        bTab[i + 1] = bTemp;
+         }
+      }
+      }
+      if ((iFilterLen & 1) > 0)
+    bTemp = bTab[(iFilterLen - 1) / 2];
+      else
+    bTemp = (bTab[iFilterLen / 2] + bTab[iFilterLen / 2 - 1]) / 2;
+      return bTemp;
+}
+
+int getTDSReading()
+{
+  static unsigned long analogSampleTimepoint = millis();
+   if(millis()-analogSampleTimepoint > 40U)     //every 40 milliseconds,read the analog value from the ADC
+   {
+     analogSampleTimepoint = millis();
+     analogBuffer[analogBufferIndex] = analogRead(TdsSensorPin);    //read the analog value and store into the buffer
+     analogBufferIndex++;
+     if(analogBufferIndex == SCOUNT) 
+         analogBufferIndex = 0;
+   }   
+   static unsigned long printTimepoint = millis();
+   if(millis()-printTimepoint > 800U)
+   {
+      printTimepoint = millis();
+      for(copyIndex=0;copyIndex<SCOUNT;copyIndex++)
+        analogBufferTemp[copyIndex]= analogBuffer[copyIndex];
+      averageVoltage = getMedianNum(analogBufferTemp,SCOUNT) * (float)VREF / 1024.0; // read the analog value more stable by the median filtering algorithm, and convert to voltage value
+      float compensationCoefficient=1.0+0.02*(temperature-25.0);    //temperature compensation formula: fFinalResult(25^C) = fFinalResult(current)/(1.0+0.02*(fTP-25.0));
+      float compensationVolatge=averageVoltage/compensationCoefficient;  //temperature compensation
+      tdsValue=(133.42*compensationVolatge*compensationVolatge*compensationVolatge - 255.86*compensationVolatge*compensationVolatge + 857.39*compensationVolatge)*0.5; //convert voltage value to tds value
+      //Serial.print("voltage:");
+      //Serial.print(averageVoltage,2);
+      //Serial.print("V   ");
+      //Serial.print("TDS Value:");
+      //Serial.print(tdsValue,0);
+      //Serial.println("ppm");
+      //return tdsValue;
+   }
+   return tdsValue;
+}
+
+
+// =======================================================
 // ======= TEMPURATURE SENSOR DS18B20 ====================
 // =======================================================
 #define ONE_WIRE_BUS 2 // Port the data wire is plugged into on the Arduino
@@ -117,7 +186,7 @@ void displayMainscreenstatic()
   lcd.setCursor(0,0);
   lcd.print("Temp:");
   lcd.setCursor(1,1);
-  lcd.print("PPM:");
+  lcd.print("TDS:");
   lcd.setCursor(2,2);
   lcd.print("PH:");
   lcd.setCursor(0,3);
@@ -133,10 +202,19 @@ void displayMainscreenData() // Display the data that changes on main screen
   //tempurature
   float temp = getWaterTemp(waterThermometer);
   if (temp == -10){
-    lcd.print("(error)");
+    lcd.print("(error)   ");
   } else {
     lcd.print(temp);
     lcd.print("(C)");
+  }
+  lcd.setCursor(5,1);
+  int tds = getTDSReading();
+  Serial.print(tds);
+  if (tds > 1000){
+    lcd.print("(error)     ");
+  } else {
+    lcd.print(tds);
+    lcd.print("(PPM)     ");
   }
     
 }
@@ -149,6 +227,7 @@ void setup(void)
 {
   Serial.begin(9600);// start serial port
   Serial.println("Starting Hydroponics Automation Controler");
+  pinMode(TdsSensorPin,INPUT); // setup TDS sensor
   displaySplashscreen();
   displayMainscreenstatic();
   setupThermometers();
@@ -165,6 +244,14 @@ void loop(void)
   // request to all devices on the bus
   Serial.print("Requesting temperatures...");
   sensors.requestTemperatures();
+  Serial.print(getWaterTemp(waterThermometer));
+  Serial.print("  ---  ");
+  Serial.println("DONE");
+
+  getTDSReading();
+  Serial.print("Requesting TDS...");
+  Serial.print(getTDSReading());
+  Serial.print("  ---  ");
   Serial.println("DONE");
 
   displayMainscreenData();
