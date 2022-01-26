@@ -3,53 +3,6 @@
 #include <DallasTemperature.h>
 #include <LiquidCrystal_I2C.h>
 
-// =================================================
-// ========== LCD DISPLAY ==========================
-// =================================================
-LiquidCrystal_I2C lcd(0x27,20,4);  // set the LCD address to 0x27 for a 16 chars and 2 line display
-// Display the splash screen
-void displaySplashscreen()
-{
-  lcd.init(); 
-  lcd.backlight();
-  lcd.setCursor(1,0);
-  lcd.print("CONCIERGE GROWERS");
-  lcd.setCursor(5,1);
-  lcd.print("Eat Good");
-  lcd.setCursor(4,2);
-  lcd.print("Feel Good");
-  lcd.setCursor(4,3);
-  lcd.print("Look Good");
-  delay(1000);
-  lcd.clear();
-}
-
-// Display the parts that don't change
-void displayMainscreenstatic()
-{
-  lcd.setCursor(0,0);
-  lcd.print("Temp:");
-  lcd.setCursor(1,1);
-  lcd.print("PPM:");
-  lcd.setCursor(2,2);
-  lcd.print("PH:");
-  lcd.setCursor(0,3);
-  lcd.print("Pump:");
-  lcd.setCursor(14,3);
-  lcd.print("(Time)");
-}
-
-void displayMainscreenData() // Display the data that changes on main screen
-{
-  lcd.setCursor(5,0);
-  // put if statement here to print c or f depending on settings
-  lcd.print(displayWaterTemp(waterThermometer));
-  lcd.print("C");
-  
-}
-
-// ------- END LCD DISPLAY ------------------------------
-
 // =======================================================
 // ======= TEMPURATURE SENSOR DS18B20 ====================
 // =======================================================
@@ -107,12 +60,12 @@ void printAddress(DeviceAddress deviceAddress)
 }
 
 // function to print information about a device
-void printData(DeviceAddress deviceAddress)
+void printData(DeviceAddress deviceAddress) // This is probably not needed
 {
   Serial.print("Device Address: ");
   printAddress(deviceAddress);
   Serial.print(" ");
-  printTemperature(deviceAddress);
+  //displayWaterTemp(deviceAddress);
   Serial.println();
 }
 
@@ -123,8 +76,8 @@ void printResolution(DeviceAddress deviceAddress)
   Serial.print(sensors.getResolution(deviceAddress));
   Serial.println();
 }
-// function to return water tempurature
-float displayWaterTemp(DeviceAddress deviceAddress)
+// --------  function to return water tempurature -------------
+float getWaterTemp(DeviceAddress deviceAddress)
 {
   float tempC = sensors.getTempC(deviceAddress);
   if(tempC == DEVICE_DISCONNECTED_C) 
@@ -135,9 +88,60 @@ float displayWaterTemp(DeviceAddress deviceAddress)
   return tempC;
   //Serial.print(DallasTemperature::toFahrenheit(tempC)); - to convert
 }
+// ----------End Tempurature Sensors  --------------
 
-// ----------    END THERMOMETER  ------------
+// =================================================
+// ========== LCD DISPLAY ==========================
+// =================================================
+LiquidCrystal_I2C lcd(0x27,20,4);  // set the LCD address to 0x27 for a 16 chars and 2 line display
+// Display the splash screen
+void displaySplashscreen()
+{
+  lcd.init(); 
+  lcd.backlight();
+  lcd.setCursor(1,0);
+  lcd.print("CONCIERGE GROWERS");
+  lcd.setCursor(5,1);
+  lcd.print("Eat Good");
+  lcd.setCursor(4,2);
+  lcd.print("Feel Good");
+  lcd.setCursor(4,3);
+  lcd.print("Look Good");
+  delay(1000);
+  lcd.clear();
+}
 
+// Display the parts that don't change
+void displayMainscreenstatic()
+{
+  lcd.setCursor(0,0);
+  lcd.print("Temp:");
+  lcd.setCursor(1,1);
+  lcd.print("PPM:");
+  lcd.setCursor(2,2);
+  lcd.print("PH:");
+  lcd.setCursor(0,3);
+  lcd.print("Pump:");
+  lcd.setCursor(14,3);
+  lcd.print("(Time)");
+}
+
+void displayMainscreenData() // Display the data that changes on main screen
+{
+  lcd.setCursor(5,0);
+  // put if statement here to print c or f depending on settings
+  //tempurature
+  float temp = getWaterTemp(waterThermometer);
+  if (temp == -10){
+    lcd.print("(error)");
+  } else {
+    lcd.print(temp);
+    lcd.print("(C)");
+  }
+    
+}
+
+// ------- END LCD DISPLAY ------------------------------
 // ==================================================
 // ===========  MAIN SETUP ==========================
 // ==================================================
