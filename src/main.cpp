@@ -2,58 +2,79 @@
 #include <OneWire.h>
 #include <DallasTemperature.h>
 #include <LiquidCrystal_I2C.h>
+#include <SimpleTimer.h>
+
+SimpleTimer timer;
 
 // =======================================================
 // ======= PH SENSOR =====================================
 // =======================================================
-const int analogInPin = A0; 
-int sensorValue = 0; 
-unsigned long int avgValue; 
-float b;
-int buf[10],temp;
+const int analog_in_pin_ph = A0; // pin the Ph sensor is connected to
+float adc_resolution = 1024.0;
+//-----------------------------------------
+float calibration_adjustment_ph = -.08; // adjust this to calibrate
+int voltage_input_ph = 4.98; // voltage can be 5 or 3.3
+//-----------------------------------------
+float calibration_value_ph = 21.34 + calibration_adjustment_ph;
+unsigned long int average_value_ph;
+int buffer_array_ph[10],temp;
+float ph_value; // actual pH value to display on screen
  
 float getPH()
 {
- // Taking 10 samples of the analogui Input A0, ordering them and iscarding the highest and lowest
- // calculating the mean with teh six remaining by converting this value to voltage in the variable pHVol
- // then using the equiation to convert pHVol to pHValue 
- Serial.print("analogRead = ");
+ // *Taking 10 samples of the analogui Input A0, ordering them and iscarding the highest and lowest
+ // *calculating the mean with teh six remaining by converting this value to voltage in the variable pHVol
+ // *then using the equiation to convert pHVol to pHValue 
+
+timer.run(); // Initiates SimpleTimer
+
+// Use the for loop we take samples, then arrange the values, and finally take the average.
+
+ Serial.print("Loop readings = ");
  for(int i=0;i<10;i++) 
- { 
-  buf[i]=analogRead(analogInPin);
-  Serial.print(buf[i]*(5.0 /1023.0));
-  Serial.print(" / ");
-  delay(10);
- }
- for(int i=0;i<9;i++)
- {
-  for(int j=i+1;j<10;j++)
-  {
-   if(buf[i]>buf[j])
-   {
-    temp=buf[i];
-    buf[i]=buf[j];
-    buf[j]=temp;
-   }
+  { 
+    buffer_array_ph[i]=analogRead(analog_in_pin_ph);
+    Serial.print(buffer_array_ph[i]); // print the voltage readout in the Serial Monitor
+    Serial.print(" / ");
+    delay(30);
   }
- }
- avgValue=0;
+ for(int i=0;i<9;i++)
+  {
+    for(int j=i+1;j<10;j++)
+      {
+        if(buffer_array_ph[i]>buffer_array_ph[j])
+          {
+            temp=buffer_array_ph[i];
+            buffer_array_ph[i]=buffer_array_ph[j];
+            buffer_array_ph[j]=temp;
+          }
+      }
+  }
+
+ average_value_ph=0;
  for(int i=2;i<8;i++)
- avgValue+=buf[i];
- float pHVol=(float)avgValue*4.84/1024/6; // voltage adjusted for calibration
- float phValue = -5.70 * pHVol + 21.34;
- Serial.print("            ");
- Serial.print("AvgValue = ");
- Serial.print(avgValue);
- Serial.print("         ");
- Serial.print("pHvol = ");
- Serial.print(pHVol);
- Serial.print("           ");
- Serial.print("sensor = ");
- Serial.println(phValue);
+  {
+    average_value_ph += buffer_array_ph[i];
+  }
+  
+ float voltage_ph = (float)average_value_ph * voltage_input_ph / 1024 / 6; 
+ ph_value = (-5.70 * voltage_ph) + calibration_value_ph; // Calculate the actual pH
  
- delay(20); // do we need this?
- return phValue;
+ Serial.print("            ");
+ Serial.print("average_value_ph = ");
+ Serial.print(average_value_ph);
+ Serial.print("         ");
+ Serial.print("voltage_ph = ");
+ Serial.print(voltage_ph);
+ Serial.print("         ");
+ Serial.print("calibration_value_ph = ");
+ Serial.print(calibration_value_ph);
+ Serial.print("         ");
+ Serial.print("ph_value = ");
+ Serial.println(ph_value);
+  
+ delay(1000); // pause between serial monitor output - can be set to zero after testing
+ return ph_value;
 }
 
 // =======================================================
