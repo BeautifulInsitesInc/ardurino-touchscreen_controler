@@ -5,11 +5,16 @@
 #include <SimpleTimer.h>
 
 SimpleTimer timer;
+// ----- SET PINS ------------------
+int pump_out = 5; // pump relay pin
+const int ph_in = A0; // pin the Ph sensor is connected to
+const int tds_in = A1; // TDS sensor pin
+const int tempurature_in = 2; // Tempurature sensor pin
 
 // =======================================================
 // ======= PH SENSOR =====================================
 // =======================================================
-const int analog_in_pin_ph = A0; // pin the Ph sensor is connected to
+
 float adc_resolution = 1024.0;
 //-----------------------------------------
 float calibration_adjustment_ph = -.08; // adjust this to calibrate
@@ -30,12 +35,15 @@ timer.run(); // Initiates SimpleTimer
 
 // Use the for loop we take samples, then arrange the values, and finally take the average.
 
- Serial.print("Loop readings = ");
+ //Serial.print("Loop readings = ");
  for(int i=0;i<10;i++) 
   { 
-    buffer_array_ph[i]=analogRead(analog_in_pin_ph);
-    Serial.print(buffer_array_ph[i]); // print the voltage readout in the Serial Monitor
-    Serial.print(" / ");
+    buffer_array_ph[i]=analogRead(ph_in);
+    //Serial.print(buffer_array_ph[i]); // print the voltage readout in the Serial Monitor
+    //Serial.print(" / ");
+
+
+
     delay(30);
   }
  for(int i=0;i<9;i++)
@@ -60,6 +68,7 @@ timer.run(); // Initiates SimpleTimer
  float voltage_ph = (float)average_value_ph * voltage_input_ph / 1024 / 6; 
  ph_value = (-5.70 * voltage_ph) + calibration_value_ph; // Calculate the actual pH
  
+ /*
  Serial.print("            ");
  Serial.print("average_value_ph = ");
  Serial.print(average_value_ph);
@@ -72,15 +81,16 @@ timer.run(); // Initiates SimpleTimer
  Serial.print("         ");
  Serial.print("ph_value = ");
  Serial.println(ph_value);
-  
- delay(1000); // pause between serial monitor output - can be set to zero after testing
+*/
+
+ delay(0); // pause between serial monitor output - can be set to zero after testing
  return ph_value;
 }
 
 // =======================================================
 // ======= PPM OCEAN TDS METER SENSOR ====================
 // =======================================================
-#define TdsSensorPin A1
+
 #define VREF 5.0      // analog reference voltage(Volt) of the ADC
 #define SCOUNT  30           // sum of sample point
 int analogBuffer[SCOUNT];    // store the analog value in the array, read from ADC
@@ -119,7 +129,7 @@ int getTDSReading()
    if(millis()-analogSampleTimepoint > 40U)     //every 40 milliseconds,read the analog value from the ADC
    {
      analogSampleTimepoint = millis();
-     analogBuffer[analogBufferIndex] = analogRead(TdsSensorPin);    //read the analog value and store into the buffer
+     analogBuffer[analogBufferIndex] = analogRead(tds_in);    //read the analog value and store into the buffer
      analogBufferIndex++;
      if(analogBufferIndex == SCOUNT) 
          analogBufferIndex = 0;
@@ -149,9 +159,9 @@ int getTDSReading()
 // =======================================================
 // ======= TEMPURATURE SENSOR DS18B20 ====================
 // =======================================================
-#define ONE_WIRE_BUS 2 // Port the data wire is plugged into on the Arduino
+
 #define TEMPERATURE_PRECISION 11
-OneWire oneWire(ONE_WIRE_BUS); // Setup a oneWire instance to communicate with any OneWire devices (not just Maxim/Dallas temperature ICs)
+OneWire oneWire(tempurature_in);// Setup a oneWire instance to communicate with any OneWire devices (not just Maxim/Dallas temperature ICs)
 DallasTemperature sensors(&oneWire); // Pass our oneWire reference to Dallas Temperature.
 DeviceAddress waterThermometer, airThermometer; // arrays to hold device addresses
 
@@ -295,7 +305,43 @@ void displayMainscreenData() // Display the data that changes on main screen
   lcd.print(ph); 
 }
 
-// ------- END LCD DISPLAY ------------------------------
+// ==================================================
+// ===========  PUMP CONTROL ========================
+// ==================================================
+int pump_on_time = .5; // how long the pump stays on for
+int pump_off_time = 2; // how long the pump stays off for
+
+void turnOnPump()
+{
+  digitalWrite(pump_out, LOW); // turn on pump
+}
+
+void turnOffPump()
+{
+  digitalWrite(pump_out, HIGH); // turn on pump
+}
+
+void printDigits(int digits) {//For displaying timer
+  Serial.print(":");
+  if(digits < 10)
+    Serial.print('0');
+  Serial.print(digits);
+}
+
+void checkPumpTimer()
+{
+  int h,m,s;
+  s = millis() / 1000;
+  m = s / 60;
+  h = s / 3600;
+  s = s - m * 60;
+  m = m - h * 60;
+  Serial.print(h);
+  printDigits(m);
+  printDigits(s);
+  Serial.println();
+}
+
 // ==================================================
 // ===========  MAIN SETUP ==========================
 // ==================================================
@@ -303,10 +349,14 @@ void setup(void)
 {
   Serial.begin(9600);// start serial port
   Serial.println("Starting Hydroponics Automation Controler");
-  pinMode(TdsSensorPin,INPUT); // setup TDS sensor
+  pinMode(tds_in,INPUT); // setup TDS sensor
+  pinMode(pump_out, OUTPUT); // setup Motor control pin
   displaySplashscreen();
   displayMainscreenstatic();
   setupThermometers();
+  //startPumpTimer();
+  timer.setInterval(15000, turnOnPump);
+  timer.setInterval(15000, turnOffPump);
 }
 // ------- END MAIN SETUP ------------------
 
@@ -316,27 +366,10 @@ void setup(void)
 
 void loop(void)
 {
-  // call sensors.requestTemperatures() to issue a global temperature
-  // request to all devices on the bus
-  //Serial.print("Requesting temperatures...");
-  sensors.requestTemperatures();
-  //Serial.print(getWaterTemp(waterThermometer));
-  //Serial.print("  ---  ");
-  //Serial.println("DONE");
-
-  // get TDS 
-  getTDSReading();
-  //Serial.print("Requesting TDS...");
-  //Serial.print(getTDSReading());
-  //Serial.print("  ---  ");
-  //Serial.println("DONE");
-
-  // get PH
-  getPH();
-  //Serial.print("Requesting PH...");
-  //Serial.print(getPH());
-  //Serial.print("  ---  ");
-  //Serial.println("DONE");
+  sensors.requestTemperatures(); // request tempuratures
+  getTDSReading(); // request TDS reasding
+  getPH(); // get pH reading
+  checkPumpTimer();
 
 
   displayMainscreenData();
