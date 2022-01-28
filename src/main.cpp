@@ -3,18 +3,24 @@
 #include <DallasTemperature.h>
 #include <LiquidCrystal_I2C.h>
 #include <SimpleTimer.h>
+#include <RTClib.h> 
 
 SimpleTimer timer;
+DS3231 rtc;
+char buf[20]; // buffer for DataTiumne.tostr
+
 // ----- SET PINS ------------------
-int pump_out = 5; // pump relay pin
+
+//const int pump_out = 5; // pump relay pin - move this to inital start to avoid pump starting on startup
 const int ph_in = A0; // pin the Ph sensor is connected to
 const int tds_in = A1; // TDS sensor pin
 const int tempurature_in = 2; // Tempurature sensor pin
+const int pump_out = 5; // set pump pin
 
 // ---- DEFAULT SETTINGS ----------
-int pump_first_on_delay = 3; // Initiall time before starting the pump on startup
-int pump_on_time = 1; // how long the pump stays on for
-int pump_off_time = 5; // how long the pump stays off for
+int pump_init_delay = 10; // Initiall time before starting the pump on startup
+int pump_on_time = 10; // how long the pump stays on for
+int pump_off_time = 20; // how long the pump stays off for
 
 // =======================================================
 // ======= PH SENSOR =====================================
@@ -32,23 +38,16 @@ float ph_value; // actual pH value to display on screen
  
 float getPH()
 {
- // *Taking 10 samples of the analogui Input A0, ordering them and iscarding the highest and lowest
- // *calculating the mean with teh six remaining by converting this value to voltage in the variable pHVol
- // *then using the equiation to convert pHVol to pHValue 
-
+ 
 timer.run(); // Initiates SimpleTimer
 
 // Use the for loop we take samples, then arrange the values, and finally take the average.
-
- //Serial.print("Loop readings = ");
+//Serial.print("Loop readings = ");
  for(int i=0;i<10;i++) 
   { 
     buffer_array_ph[i]=analogRead(ph_in);
     //Serial.print(buffer_array_ph[i]); // print the voltage readout in the Serial Monitor
     //Serial.print(" / ");
-
-
-
     delay(30);
   }
  for(int i=0;i<9;i++)
@@ -95,7 +94,6 @@ timer.run(); // Initiates SimpleTimer
 // =======================================================
 // ======= PPM OCEAN TDS METER SENSOR ====================
 // =======================================================
-
 #define VREF 5.0      // analog reference voltage(Volt) of the ADC
 #define SCOUNT  30           // sum of sample point
 int analogBuffer[SCOUNT];    // store the analog value in the array, read from ADC
@@ -160,11 +158,9 @@ int getTDSReading()
    return tdsValue;
 }
 
-
 // =======================================================
 // ======= TEMPURATURE SENSOR DS18B20 ====================
 // =======================================================
-
 #define TEMPERATURE_PRECISION 11
 OneWire oneWire(tempurature_in);// Setup a oneWire instance to communicate with any OneWire devices (not just Maxim/Dallas temperature ICs)
 DallasTemperature sensors(&oneWire); // Pass our oneWire reference to Dallas Temperature.
@@ -296,6 +292,7 @@ void displayMainscreenData() // Display the data that changes on main screen
     lcd.print(temp);
     lcd.print("(C)");
   }
+  // TDS reading
   lcd.setCursor(5,1);
   int tds = getTDSReading();
   //Serial.print(tds);
@@ -305,49 +302,98 @@ void displayMainscreenData() // Display the data that changes on main screen
     lcd.print(tds);
     lcd.print("(PPM)     ");
   }
+  // pH Reading
   lcd.setCursor(5,2);
   float ph = getPH();
   lcd.print(ph); 
+  // Pump status
+  lcd.setCursor(5,3);
+  if (digitalRead(pump_out) == 0)
+    {
+      lcd.print("ON     ");
+    } else {
+        lcd.print("OFF    ");
+      }
 }
 
 // ==================================================
 // ===========  PUMP CONTROL ========================
 // ==================================================
-int pump_inital_delay_mills = pump_first_on_delay*1000;
+int pump_init_delay_mills = pump_init_delay*1000;
 int pump_on_time_mills = pump_off_time *1000; // pump turns on after the time off delay
 int pump_off_time_mills = pump_off_time *1000; // pump turns off after teh time on delay
-int pump_on_timer; // setup the on and off timer ids
-int pump_off_timer;
-
-
-void turnOffPump()
-{
-  Serial.print("Turning on pump and reseting the off timer ");
-  digitalWrite(pump_out, HIGH); // turn on pump
-  timer.restartTimer(pump_on_timer);
-  Serial.print("Turning on pump and reseting the off timer ");
-}
+int pump_on_timerID; // setup the on and off timer ids
+int pump_off_timerID;
+int pump_previous_state; // used to check if state of pump has changed
+int pump_pin_value = digitalRead(pump_out);
 
 void turnOnPump()
 {
+  Serial.print("Turning on pump...  ");
   digitalWrite(pump_out, LOW); // turn on pump
-  timer.restartTimer(pump_off_timer); // rest the pump off to start now
-}
+  Serial.print("Pump is on : ");
+  Serial.println(digitalRead(pump_out));
+ }
 
-void startPumpTimer()
+void turnOffPump()
 {
-  Serial.print("startPumpTimer fuction");
-  digitalWrite(pump_out, HIGH); // make sure pump is off to start
-  Serial.print("just turned off the pump");
-  timer.setTimeout(pump_inital_delay_mills, turnOnPump); // Run this just once to initialy start the first pump cycle
-  Serial.print("Just started the inital timer");
-  pump_on_timer = timer.setInterval(pump_on_time_mills, turnOnPump); // Sets the re-occuring pump on timer - to be reset after each off
-  Serial.print("|   set the regular on time"   );
-  pump_off_timer = timer.setInterval(pump_off_time_mills, turnOffPump); // Sets the re-occuring pump off time - reset after each turn on
-  Serial.println("|   set the regular of time"   );
+  Serial.print("Turning off pump...  ");
+  digitalWrite(pump_out, HIGH); // turn off pump
+  Serial.print("Pump is off : ");
+  Serial.println(digitalRead(pump_out));
 }
 
+void pumpTimerFunction()
+{
+  pump_pin_value = digitalRead(pump_out);
+  Serial.print("pin value : ");
+  Serial.print(pump_pin_value);
+  if (pump_pin_value == 1)  // is it off?
+    {
+      Serial.print("   Pump is off : ");
+      Serial.println(pump_pin_value);
+      if (pump_previous_state == 0) // If it was previously on
+        {
+          Serial.println("pump has changed state to off ... ");
+          timer.setInterval(pump_off_time_mills, turnOnPump); // start timer to turn it off
+          pump_previous_state = 1;
+        }
+    }
+  if (pump_pin_value == 0)
+    {
+      Serial.print("Pump is on : ");
+      Serial.println(pump_pin_value);
+      if (pump_previous_state == 1) // if it just changed from off
+        {
+          Serial.println("pump has changed state to on... ");
+          timer.setInterval(pump_on_time_mills, turnOffPump);
+          pump_previous_state = 1;
+        }
+    }
+}
 
+void initalizePumpTimer() // Only run once at startup
+{
+  Serial.print("initalizePumpTimer Started");
+  pinMode(pump_out, OUTPUT); // setup Motor control pin to output
+  timer.setTimeout(pump_off_time_mills, pumpTimerFunction);
+  pump_previous_state = 1;
+  Serial.print("pump previous state set to current : ");
+  Serial.println(pump_previous_state);
+}
+
+void checkPumpStatus()
+{
+  /*
+  pump_pin_value = digitalRead(pump_out);
+  Serial.print("pin value : ");
+  Serial.println(pump_pin_value);
+  
+    */
+    
+}
+
+// --- Serial print counter -----
 void printDigits(int digits) {//For displaying timer
   Serial.print(":");
   if(digits < 10)
@@ -370,21 +416,29 @@ void pumpTimer()
 }
 
 // ==================================================
+// ===========  RTC STUFF ===========================
+// ==================================================
+void rtcSetup()
+{
+
+
+}
+
+// ==================================================
 // ===========  MAIN SETUP ==========================
 // ==================================================
-int timerID;
 void setup(void)
 {
   Serial.begin(9600);// start serial port
   Serial.println("Starting Hydroponics Automation Controler");
   pinMode(tds_in,INPUT); // setup TDS sensor
-  pinMode(pump_out, OUTPUT); // setup Motor control pin
   displaySplashscreen();
   displayMainscreenstatic();
   setupThermometers();
-  startPumpTimer();
-  Serial.println("Started pump timer");
-  //timerID = timer.setInterval(1000,pumpTimer);
+
+  //initalizePumpTimer();
+  Serial.println("Started pump initilation delay");
+  timer.setTimeout(pump_init_delay_mills,initalizePumpTimer);
   
  
 }
@@ -394,13 +448,18 @@ void setup(void)
 // ===========  MAIN LOOP =============================
 // ====================================================
 
+
 void loop(void)
 {
   sensors.requestTemperatures(); // request tempuratures
   getTDSReading(); // request TDS reasding
   getPH(); // get pH reading
   timer.run();
-  pumpTimer();
+ 
+  pumpTimerFunction();
+  
+ 
+
   displayMainscreenData();
 
 }
